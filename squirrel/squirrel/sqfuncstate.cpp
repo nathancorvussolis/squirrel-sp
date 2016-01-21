@@ -73,7 +73,6 @@ SQInstructionDesc g_InstrDesc[]={
 	{_SC("_OP_NEWSLOTA")},
 	{_SC("_OP_GETBASE")},
 	{_SC("_OP_CLOSE")},
-	{_SC("_OP_JCMP")}
 };
 #endif
 void DumpLiteral(SQObjectPtr &o)
@@ -460,6 +459,7 @@ void SQFuncState::AddInstruction(SQInstruction &i)
 				pi._arg1 = i._arg1;
 				return;
 			}
+			break;
 		case _OP_SET:
 		case _OP_NEWSLOT:
 			if(i._arg0 == i._arg3) {

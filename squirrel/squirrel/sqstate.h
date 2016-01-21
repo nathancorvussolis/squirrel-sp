@@ -109,6 +109,8 @@ public:
 	SQPRINTFUNCTION _errorfunc;
 	bool _debuginfo;
 	bool _notifyallexceptions;
+	SQUserPointer _foreignptr;
+	SQRELEASEHOOK _releasehook;
 private:
 	SQChar *_scratchpad;
 	SQInteger _scratchpadsize;
@@ -127,14 +129,6 @@ private:
 #define _class_ddel		_table(_sharedstate->_class_default_delegate) 
 #define _instance_ddel	_table(_sharedstate->_instance_default_delegate) 
 #define _weakref_ddel	_table(_sharedstate->_weakref_default_delegate) 
-
-#ifdef SQUNICODE //rsl REAL STRING LEN
-#define rsl(l) ((l)<<1)
-#else
-#define rsl(l) (l)
-#endif
-
-//extern SQObjectPtr _null_;
 
 bool CompileTypemask(SQIntVec &res,const SQChar *typemask);
 

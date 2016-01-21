@@ -157,7 +157,7 @@ public:
 	void MoveIfCurrentTargetIsLocal() {
 		SQInteger trg = _fs->TopTarget();
 		if(_fs->IsLocal(trg)) {
-			trg = _fs->PopTarget(); //no pops the target and move it
+			trg = _fs->PopTarget(); //pops the target and moves it
 			_fs->AddInstruction(_OP_MOVE, _fs->PushTarget(), trg);
 		}
 	}
@@ -357,7 +357,9 @@ public:
 				SQInteger tmp = _fs->PushTarget();
 				_fs->AddInstruction(_OP_GETOUTER,   tmp, pos);
 				_fs->AddInstruction(ChooseArithOpByToken(tok), tmp, val, tmp, 0);
-				_fs->AddInstruction(_OP_SETOUTER, tmp, pos, tmp);
+				_fs->PopTarget();
+				_fs->PopTarget();
+				_fs->AddInstruction(_OP_SETOUTER, _fs->PushTarget(), pos, tmp);
 			}
 			break;
 		}
@@ -386,7 +388,6 @@ public:
 			SQInteger pos = _es.epos;
 			if(ds == EXPR) Error(_SC("can't assign expression"));
 			else if(ds == BASE) Error(_SC("'base' cannot be modified"));
-
 			Lex(); Expression();
 
 			switch(op){
@@ -502,7 +503,7 @@ public:
 			_fs->SetIntructionParam(jpos, 1, (_fs->GetCurrentPos() - jpos));
 			break;
 			}
-    
+		
 		default:
 			return;
 		}
@@ -658,6 +659,7 @@ public:
 						case EXPR: Error(_SC("can't '++' or '--' an expression")); break;
 						case OBJECT:
 						case BASE:
+							if(_es.donot_get == true)  { Error(_SC("can't '++' or '--' an expression")); break; } //mmh dor this make sense?
 							Emit2ArgsOP(_OP_PINC, diff);
 							break;
 						case LOCAL: {
@@ -708,7 +710,7 @@ public:
 	}
 	SQInteger Factor()
 	{
-		_es.etype = EXPR;
+		//_es.etype = EXPR;
 		switch(_token)
 		{
 		case TK_STRING_LITERAL:
@@ -730,8 +732,8 @@ public:
 
 				switch(_token) {
 					case TK_IDENTIFIER:  id = _fs->CreateString(_lex._svalue);       break;
-					case TK_THIS:        id = _fs->CreateString(_SC("this"));        break;
-					case TK_CONSTRUCTOR: id = _fs->CreateString(_SC("constructor")); break;
+					case TK_THIS:        id = _fs->CreateString(_SC("this"),4);        break;
+					case TK_CONSTRUCTOR: id = _fs->CreateString(_SC("constructor"),11); break;
 				}
 
 				SQInteger pos = -1;
@@ -778,6 +780,7 @@ public:
 					switch(ctype) {
 						case OT_INTEGER: EmitLoadConstInt(_integer(constval),_es.epos); break;
 						case OT_FLOAT: EmitLoadConstFloat(_float(constval),_es.epos); break;
+						case OT_BOOL: _fs->AddInstruction(_OP_LOADBOOL, _es.epos, _integer(constval)); break;
 						default: _fs->AddInstruction(_OP_LOAD,_es.epos,_fs->GetConstant(constval)); break;
 					}
 					_es.etype = EXPR;
@@ -861,8 +864,11 @@ public:
 		case TK_DELETE : DeleteExpr(); break;
 		case _SC('('): Lex(); CommaExpr(); Expect(_SC(')'));
 			break;
+		case TK___LINE__: EmitLoadConstInt(_lex._currentline,-1); Lex(); break;
+        case TK___FILE__: _fs->AddInstruction(_OP_LOAD, _fs->PushTarget(), _fs->GetConstant(_sourcename)); Lex(); break;
 		default: Error(_SC("expression expected"));
 		}
+		_es.etype = EXPR;
 		return -1;
 	}
 	void EmitLoadConstInt(SQInteger value,SQInteger target)
@@ -870,7 +876,7 @@ public:
 		if(target < 0) {
 			target = _fs->PushTarget();
 		}
-		if((value & (~((SQInteger)0xFFFFFFFF))) == 0) { //does it fit in 32 bits?
+		if(value <= INT_MAX && value > INT_MIN) { //does it fit in 32 bits?
 			_fs->AddInstruction(_OP_LOADINT, target,value);
 		}
 		else {
@@ -899,8 +905,13 @@ public:
 	{
 		switch(_token) {
 		case _SC('='): case _SC('('): case TK_NEWSLOT: case TK_MODEQ: case TK_MULEQ:
-	    case TK_DIVEQ: case TK_MINUSEQ: case TK_PLUSEQ: case TK_PLUSPLUS: case TK_MINUSMINUS:
+	    case TK_DIVEQ: case TK_MINUSEQ: case TK_PLUSEQ:
 			return false;
+		case TK_PLUSPLUS: case TK_MINUSMINUS:
+			if (!IsEndOfStatement()) {
+				return false;
+			}
+		break;
 		}
 		return (!_es.donot_get || ( _es.donot_get && (_token == _SC('.') || _token == _SC('['))));
 	}
@@ -1016,33 +1027,66 @@ public:
 			if(_token == _SC(',')) Lex(); else break;
 		} while(1);
 	}
+	void IfBlock()
+	{
+		if (_token == _SC('{'))
+		{
+			BEGIN_SCOPE();
+			Lex();
+			Statements();
+			Expect(_SC('}'));
+			if (true) {
+				END_SCOPE();
+			}
+			else {
+				END_SCOPE_NO_CLOSE();
+			}
+		}
+		else {
+			//BEGIN_SCOPE();
+			Statement();
+			if (_lex._prevtoken != _SC('}') && _lex._prevtoken != _SC(';')) OptionalSemicolon();
+			//END_SCOPE();
+		}
+	}
 	void IfStatement()
-    {
-        SQInteger jmppos;
-        bool haselse = false;
-        Lex(); Expect(_SC('(')); CommaExpr(); Expect(_SC(')'));
-        _fs->AddInstruction(_OP_JZ, _fs->PopTarget());
-        SQInteger jnepos = _fs->GetCurrentPos();
-        BEGIN_SCOPE();
-        
-        Statement();
-        //
-        if(_token != _SC('}') && _token != TK_ELSE) OptionalSemicolon();
-        
-        END_SCOPE();
-        SQInteger endifblock = _fs->GetCurrentPos();
-        if(_token == TK_ELSE){
-            haselse = true;
-            BEGIN_SCOPE();
-            _fs->AddInstruction(_OP_JMP);
-            jmppos = _fs->GetCurrentPos();
-            Lex();
-            Statement(); if(_lex._prevtoken != _SC('}')) OptionalSemicolon();
-            END_SCOPE();
-            _fs->SetIntructionParam(jmppos, 1, _fs->GetCurrentPos() - jmppos);
-        }
-        _fs->SetIntructionParam(jnepos, 1, endifblock - jnepos + (haselse?1:0));
-    }
+	{
+		SQInteger jmppos;
+		bool haselse = false;
+		Lex(); Expect(_SC('(')); CommaExpr(); Expect(_SC(')'));
+		_fs->AddInstruction(_OP_JZ, _fs->PopTarget());
+		SQInteger jnepos = _fs->GetCurrentPos();
+		
+		
+		
+		IfBlock();
+		//
+		/*static int n = 0;
+		if (_token != _SC('}') && _token != TK_ELSE) {
+			printf("IF %d-----------------------!!!!!!!!!\n", n);
+			if (n == 5)
+			{
+				printf("asd");
+			}
+			n++;
+			//OptionalSemicolon();
+		}*/
+		
+		
+		SQInteger endifblock = _fs->GetCurrentPos();
+		if(_token == TK_ELSE){
+			haselse = true;
+			//BEGIN_SCOPE();
+			_fs->AddInstruction(_OP_JMP);
+			jmppos = _fs->GetCurrentPos();
+			Lex();
+			//Statement(); if(_lex._prevtoken != _SC('}')) OptionalSemicolon();
+			IfBlock();
+			//END_SCOPE();
+			_fs->SetIntructionParam(jmppos, 1, _fs->GetCurrentPos() - jmppos);
+		}
+		_fs->SetIntructionParam(jnepos, 1, endifblock - jnepos + (haselse?1:0));
+	}
 	void WhileStatement()
 	{
 		SQInteger jzpos, jmppos;

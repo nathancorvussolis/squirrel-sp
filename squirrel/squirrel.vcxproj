@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\sqconfig.h" />
     <ClInclude Include="include\sqstdaux.h" />
     <ClInclude Include="include\sqstdblob.h" />
     <ClInclude Include="include\sqstdio.h" />
