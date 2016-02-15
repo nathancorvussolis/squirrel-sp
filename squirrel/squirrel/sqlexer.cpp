@@ -8,6 +8,9 @@
 #include "sqstring.h"
 #include "sqcompiler.h"
 #include "sqlexer.h"
+#if defined(SQUNICODE) && defined(_MSC_VER)
+#include <windows.h>
+#endif
 
 #define CUR_CHAR (_currdata)
 #if defined(SQUNICODE) && defined(_MSC_VER)
@@ -32,7 +35,7 @@ void SQLexer::Init(SQSharedState *ss, SQLEXREADFUNC rg, SQUserPointer up,Compile
 	_errfunc = efunc;
 	_errtarget = ed;
 	_sharedstate = ss;
-	_keywords = SQTable::Create(ss, 37);
+	_keywords = SQTable::Create(ss, 26);
 	ADD_KEYWORD(while, TK_WHILE);
 	ADD_KEYWORD(do, TK_DO);
 	ADD_KEYWORD(if, TK_IF);
@@ -68,8 +71,6 @@ void SQLexer::Init(SQSharedState *ss, SQLEXREADFUNC rg, SQUserPointer up,Compile
 	ADD_KEYWORD(static,TK_STATIC);
 	ADD_KEYWORD(enum,TK_ENUM);
 	ADD_KEYWORD(const,TK_CONST);
-	ADD_KEYWORD(__LINE__,TK___LINE__);
-    ADD_KEYWORD(__FILE__,TK___FILE__);
 
 	_readf = rg;
 	_up = up;
@@ -297,10 +298,10 @@ SQInteger SQLexer::Lex()
 	return 0;    
 }
 	
-SQInteger SQLexer::GetIDType(const SQChar *s,SQInteger len)
+SQInteger SQLexer::GetIDType(SQChar *s)
 {
 	SQObjectPtr t;
-	if(_keywords->GetStr(s,len, t)) {
+	if(_keywords->Get(SQString::Create(_sharedstate, s), t)) {
 		return SQInteger(_integer(t));
 	}
 	return TK_IDENTIFIER;
@@ -508,7 +509,7 @@ SQInteger SQLexer::ReadID()
 		NEXT();
 	} while(scisalnum(CUR_CHAR) || CUR_CHAR == _SC('_'));
 	TERMINATE_BUFFER();
-	res = GetIDType(&_longstr[0],_longstr.size() - 1);
+	res = GetIDType(&_longstr[0]);
 	if(res == TK_IDENTIFIER || res == TK_CONSTRUCTOR) {
 		_svalue = &_longstr[0];
 	}

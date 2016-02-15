@@ -1,9 +1,8 @@
 squirrel-sp
 ===========
 
-squirrel 3.1 with UTF-16 Surrogate Pair Patch for Windows Unicode Build
+squirrel 3.0.7 with UTF-16 surrogate pair patch
 
 http://www.squirrel-lang.org/
-https://github.com/albertodemichelis/squirrel
 
 Licensed under the MIT license.

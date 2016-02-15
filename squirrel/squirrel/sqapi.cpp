@@ -13,7 +13,7 @@
 #include "sqfuncstate.h"
 #include "sqclass.h"
 
-static bool sq_aux_gettypedarg(HSQUIRRELVM v,SQInteger idx,SQObjectType type,SQObjectPtr **o)
+bool sq_aux_gettypedarg(HSQUIRRELVM v,SQInteger idx,SQObjectType type,SQObjectPtr **o)
 {
 	*o = &stack_get(v,idx);
 	if(type(**o) != type){
@@ -34,7 +34,7 @@ static bool sq_aux_gettypedarg(HSQUIRRELVM v,SQInteger idx,SQObjectType type,SQO
 
 SQInteger sq_aux_invalidtype(HSQUIRRELVM v,SQObjectType type)
 {
-	scsprintf(_ss(v)->GetScratchPad(100), 100 *sizeof(SQChar), _SC("unexpected type %s"), IdType2Name(type));
+	scsprintf(_ss(v)->GetScratchPad(100), _SC("unexpected type %s"), IdType2Name(type));
 	return sq_throwerror(v, _ss(v)->GetScratchPad(-1));
 }
 
@@ -128,7 +128,7 @@ SQRESULT sq_compile(HSQUIRRELVM v,SQLEXREADFUNC read,SQUserPointer p,const SQCha
 	SQObjectPtr o;
 #ifndef NO_COMPILER
 	if(Compile(v, read, p, sourcename, o, raiseerror?true:false, _ss(v)->_debuginfo)) {
-		v->Push(SQClosure::Create(_ss(v), _funcproto(o), _table(v->_roottable)->GetWeakRef(OT_TABLE)));
+		v->Push(SQClosure::Create(_ss(v), _funcproto(o)));
 		return SQ_OK;
 	}
 	return SQ_ERROR;
@@ -177,12 +177,6 @@ SQBool sq_release(HSQUIRRELVM v,HSQOBJECT *po)
 #else
 	return _ss(v)->_refs_table.Release(*po);
 #endif
-}
-
-SQUnsignedInteger sq_getvmrefcount(HSQUIRRELVM v, const HSQOBJECT *po)
-{
-	if (!ISREFCOUNTED(type(*po))) return 0;
-	return po->_unVal.pRefCounted->_uiRef;
 }
 
 const SQChar *sq_objtostring(const HSQOBJECT *o) 
@@ -257,14 +251,9 @@ void sq_pushuserpointer(HSQUIRRELVM v,SQUserPointer p)
 	v->Push(p);
 }
 
-void sq_pushthread(HSQUIRRELVM v, HSQUIRRELVM thread)
-{
-	v->Push(thread);
-}
-
 SQUserPointer sq_newuserdata(HSQUIRRELVM v,SQUnsignedInteger size)
 {
-	SQUserData *ud = SQUserData::Create(_ss(v), size + SQ_ALIGNMENT);
+	SQUserData *ud = SQUserData::Create(_ss(v), size);
 	v->Push(ud);
 	return (SQUserPointer)sq_aligning(ud + 1);
 }
@@ -498,27 +487,6 @@ SQRESULT sq_getclosurename(HSQUIRRELVM v,SQInteger idx)
 	return SQ_OK;
 }
 
-SQRESULT sq_setclosureroot(HSQUIRRELVM v,SQInteger idx)
-{
-	SQObjectPtr &c = stack_get(v,idx);
-	SQObject o = stack_get(v, -1);
-	if(!sq_isclosure(c)) return sq_throwerror(v, _SC("closure expected"));
-	if(sq_istable(o)) {
-		_closure(c)->SetRoot(_table(o)->GetWeakRef(OT_TABLE));
-		v->Pop();
-		return SQ_OK;
-	}
-	return sq_throwerror(v, _SC("ivalid type"));
-}
-
-SQRESULT sq_getclosureroot(HSQUIRRELVM v,SQInteger idx)
-{
-	SQObjectPtr &c = stack_get(v,idx);
-	if(!sq_isclosure(c)) return sq_throwerror(v, _SC("closure expected"));
-	v->Push(_closure(c)->_root->_obj);
-	return SQ_OK;
-}
-
 SQRESULT sq_clear(HSQUIRRELVM v,SQInteger idx)
 {
 	SQObject &o=stack_get(v,idx);
@@ -578,36 +546,6 @@ void sq_setforeignptr(HSQUIRRELVM v,SQUserPointer p)
 SQUserPointer sq_getforeignptr(HSQUIRRELVM v)
 {
 	return v->_foreignptr;
-}
-
-void sq_setsharedforeignptr(HSQUIRRELVM v,SQUserPointer p)
-{
-	_ss(v)->_foreignptr = p;
-}
-
-SQUserPointer sq_getsharedforeignptr(HSQUIRRELVM v)
-{
-	return _ss(v)->_foreignptr;
-}
-
-void sq_setvmreleasehook(HSQUIRRELVM v,SQRELEASEHOOK hook)
-{
-	v->_releasehook = hook;
-}
-
-SQRELEASEHOOK sq_getvmreleasehook(HSQUIRRELVM v)
-{
-	return v->_releasehook;
-}
-
-void sq_setsharedreleasehook(HSQUIRRELVM v,SQRELEASEHOOK hook)
-{
-	_ss(v)->_releasehook = hook;
-}
-
-SQRELEASEHOOK sq_getsharedreleasehook(HSQUIRRELVM v)
-{
-	return _ss(v)->_releasehook;
 }
 
 void sq_push(HSQUIRRELVM v,SQInteger idx)
@@ -1010,7 +948,7 @@ SQRESULT sq_getdelegate(HSQUIRRELVM v,SQInteger idx)
 SQRESULT sq_get(HSQUIRRELVM v,SQInteger idx)
 {
 	SQObjectPtr &self=stack_get(v,idx);
-	if(v->Get(self,v->GetUp(-1),v->GetUp(-1),0,DONT_FALL_BACK))
+	if(v->Get(self,v->GetUp(-1),v->GetUp(-1),false,DONT_FALL_BACK))
 		return SQ_OK;
 	v->Pop();
 	return SQ_ERROR;
@@ -1201,20 +1139,6 @@ void sq_setreleasehook(HSQUIRRELVM v,SQInteger idx,SQRELEASEHOOK hook)
 		default: break; //shutup compiler
 		}
 	}
-}
-
-SQRELEASEHOOK sq_getreleasehook(HSQUIRRELVM v,SQInteger idx)
-{
-	if(sq_gettop(v) >= 1){
-		SQObjectPtr &ud=stack_get(v,idx);
-		switch( type(ud) ) {
-		case OT_USERDATA:	return _userdata(ud)->_hook;	break;
-		case OT_INSTANCE:	return _instance(ud)->_hook;	break;
-		case OT_CLASS:		return _class(ud)->_hook;		break;
-		default: break; //shutup compiler
-		}
-	}
-	return NULL;
 }
 
 void sq_setcompilererrorhandler(HSQUIRRELVM v,SQCOMPILERERROR f)

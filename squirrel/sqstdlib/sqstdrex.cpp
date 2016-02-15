@@ -4,6 +4,15 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <sqstdstring.h>
+#if defined(SQUNICODE) && defined(_MSC_VER)
+#include <windows.h>
+#endif
+
+#ifdef SQUNICODE
+#define scisprint iswprint
+#else
+#define scisprint isprint
+#endif
 
 #ifdef _DEBUG
 #include <stdio.h>
@@ -424,7 +433,8 @@ static SQBool sqstd_rex_matchclass(SQRex* exp,SQRexNode *node,SQChar c)
 				break;
 			case OP_CCLASS:
 #if defined(SQUNICODE) && defined(_MSC_VER)
-				if((c <= MAX_CHAR) && sqstd_rex_matchcclass(node->left,(SQChar)c)) return SQTrue;
+				if((('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')) &&
+					sqstd_rex_matchcclass(node->left,(SQChar)c)) return SQTrue;
 #else
 				if(sqstd_rex_matchcclass(node->left,c)) return SQTrue;
 #endif

@@ -288,7 +288,7 @@ void Interactive(HSQUIRRELVM v)
 		buffer[i] = _SC('\0');
 		
 		if(buffer[0]==_SC('=')){
-			scsprintf(sq_getscratchpad(v, MAXINPUT), MAXINPUT,_SC("return (%s)"), &buffer[1]);
+			scsprintf(sq_getscratchpad(v,MAXINPUT),_SC("return (%s)"),&buffer[1]);
 			memcpy(buffer,sq_getscratchpad(v,-1),(scstrlen(sq_getscratchpad(v,-1))+1)*sizeof(SQChar));
 			retval=1;
 		}

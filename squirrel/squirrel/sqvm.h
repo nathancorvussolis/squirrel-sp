@@ -9,10 +9,7 @@
 
 #define SQ_SUSPEND_FLAG -666
 #define DONT_FALL_BACK 666
-//#define EXISTS_FALL_BACK -1
-
-#define GET_FLAG_RAW				0x00000001
-#define GET_FLAG_DO_NOT_RAISE_ERROR	0x00000002
+#define EXISTS_FALL_BACK -1
 //base lib
 void sq_base_register(HSQUIRRELVM v);
 
@@ -69,7 +66,7 @@ public:
 
 	void CallDebugHook(SQInteger type,SQInteger forcedline=0);
 	void CallErrorHandler(SQObjectPtr &e);
-	bool Get(const SQObjectPtr &self, const SQObjectPtr &key, SQObjectPtr &dest, SQUnsignedInteger getflags, SQInteger selfidx);
+	bool Get(const SQObjectPtr &self, const SQObjectPtr &key, SQObjectPtr &dest, bool raw, SQInteger selfidx);
 	SQInteger FallBackGet(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr &dest);
 	bool InvokeDefaultDelegate(const SQObjectPtr &self,const SQObjectPtr &key,SQObjectPtr &dest);
 	bool Set(const SQObjectPtr &self, const SQObjectPtr &key, const SQObjectPtr &val, SQInteger selfidx);
@@ -167,12 +164,11 @@ public:
 
 	ExceptionsTraps _etraps;
 	CallInfo *ci;
-	SQUserPointer _foreignptr;
+	void *_foreignptr;
 	//VMs sharing the same state
 	SQSharedState *_sharedstate;
 	SQInteger _nnativecalls;
 	SQInteger _nmetamethodscall;
-	SQRELEASEHOOK _releasehook;
 	//suspend infos
 	SQBool _suspended;
 	SQBool _suspended_root;

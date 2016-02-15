@@ -50,8 +50,9 @@ static SQInteger _system_clock(HSQUIRRELVM v)
 
 static SQInteger _system_time(HSQUIRRELVM v)
 {
-	SQInteger t = (SQInteger)time(NULL);
-	sq_pushinteger(v,t);
+	time_t t;
+	time(&t);
+	sq_pushinteger(v,*((SQInteger *)&t));
 	return 1;
 }
 
