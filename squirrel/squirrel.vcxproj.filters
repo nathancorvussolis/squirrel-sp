@@ -105,6 +105,12 @@
     <ClInclude Include="squirrel\sqvm.h">
       <Filter>Header Files\squirrel</Filter>
     </ClInclude>
+    <ClInclude Include="include\sqconfig.h">
+      <Filter>Header Files\include</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="squirrel\sqapi.cpp">
@@ -166,6 +172,9 @@
     </ClCompile>
     <ClCompile Include="sqstdlib\sqstdsystem.cpp">
       <Filter>Source Files\sqstdlib</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
