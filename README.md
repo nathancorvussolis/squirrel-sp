@@ -1,7 +1,7 @@
 squirrel-sp
 ===========
 
-Squirrel 3.1 stable with UTF-16 Surrogate Pair Patch for Windows Unicode Build
+Squirrel 3.2 stable with UTF-16 Surrogate Pair Patch for Windows Unicode Build
 
 http://www.squirrel-lang.org/
 

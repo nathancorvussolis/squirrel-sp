@@ -191,6 +191,9 @@ static SQInteger sqstd_rex_charnode(SQRex *exp,SQBool isclass)
                      exp->_nodes[node].right = ce;
                      return node;
                 }
+            case 0:
+                sqstd_rex_error(exp,_SC("letter expected for argument of escape sequence"));
+                break;
             case 'b':
             case 'B':
                 if(!isclass) {
@@ -679,10 +682,10 @@ SQRex *sqstd_rex_compile(const SQChar *pattern,const SQChar **error)
                     scprintf(_SC("[%02d] %10s "),i,g_nnames[exp->_nodes[i].type-MAX_UCSCHAR]);
 #else
                 if(exp->_nodes[i].type>MAX_CHAR)
-                    scprintf(_SC("[%02d] %10s "),i,g_nnames[exp->_nodes[i].type-MAX_CHAR]);
+                    scprintf(_SC("[%02d] %10s "), (SQInt32)i,g_nnames[exp->_nodes[i].type-MAX_CHAR]);
 #endif
                 else
-                    scprintf(_SC("[%02d] %10c "),i,exp->_nodes[i].type);
+                    scprintf(_SC("[%02d] %10c "), (SQInt32)i,exp->_nodes[i].type);
                 scprintf(_SC("left %02d right %02d next %02d\n"), (SQInt32)exp->_nodes[i].left, (SQInt32)exp->_nodes[i].right, (SQInt32)exp->_nodes[i].next);
             }
             scprintf(_SC("\n"));
